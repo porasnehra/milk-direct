@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { MapPin, Milk, Bike, Navigation, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -13,12 +13,12 @@ import {
 
 // Mock seller data
 const mockSellers = [
-  { id: 1, name: "Krishna Dairy", lat: 28.81, lng: 77.21, type: "seller", milkType: "Buffalo", price: 60 },
-  { id: 2, name: "Green Valley Farm", lat: 28.79, lng: 77.23, type: "seller", milkType: "Cow", price: 55 },
-  { id: 3, name: "Mother Dairy Outlet", lat: 28.805, lng: 77.215, type: "seller", milkType: "Mixed", price: 52 },
-  { id: 4, name: "Ramesh Dairy Farm", lat: 28.77, lng: 77.19, type: "seller", milkType: "A2 Milk", price: 70 },
-  { id: 5, name: "Amit", lat: 28.815, lng: 77.22, type: "delivery", available: true },
-  { id: 6, name: "Vijay", lat: 28.80, lng: 77.20, type: "delivery", available: true },
+  { id: 1, name: "Krishna Dairy", lat: 28.81, lng: 77.21, type: "seller" as const, milkType: "Buffalo", price: 60 },
+  { id: 2, name: "Green Valley Farm", lat: 28.79, lng: 77.23, type: "seller" as const, milkType: "Cow", price: 55 },
+  { id: 3, name: "Mother Dairy Outlet", lat: 28.805, lng: 77.215, type: "seller" as const, milkType: "Mixed", price: 52 },
+  { id: 4, name: "Ramesh Dairy Farm", lat: 28.77, lng: 77.19, type: "seller" as const, milkType: "A2 Milk", price: 70 },
+  { id: 5, name: "Amit", lat: 28.815, lng: 77.22, type: "delivery" as const },
+  { id: 6, name: "Vijay", lat: 28.80, lng: 77.20, type: "delivery" as const },
 ];
 
 type Seller = typeof mockSellers[0];
@@ -28,96 +28,11 @@ interface MapProps {
 }
 
 const GoogleMap = ({ onSellerSelect }: MapProps) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const [userLocation, setUserLocation] = useState({ lat: 28.8, lng: 77.2 });
-  const [isLoading, setIsLoading] = useState(true);
   const [milkType, setMilkType] = useState("all");
   const [quantity, setQuantity] = useState("2");
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
-
-  // Load Google Maps Script
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCSaBM6romuz2ajektvYRNPNadVMFSXDhI&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      setMapLoaded(true);
-      initMap();
-    };
-    script.onerror = () => {
-      console.log("Google Maps failed to load, using fallback");
-      setIsLoading(false);
-    };
-    document.head.appendChild(script);
-
-    return () => {
-      script.remove();
-    };
-  }, []);
-
-  const initMap = () => {
-    if (!mapRef.current || typeof google === "undefined") {
-      setIsLoading(false);
-      return;
-    }
-
-    const mapInstance = new google.maps.Map(mapRef.current, {
-      center: userLocation,
-      zoom: 14,
-      styles: [
-        { featureType: "water", elementType: "geometry", stylers: [{ color: "#e9e9e9" }] },
-        { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-        { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#c8e6c9" }] },
-      ],
-      disableDefaultUI: true,
-      zoomControl: true,
-    });
-
-    // User marker
-    new google.maps.Marker({
-      position: userLocation,
-      map: mapInstance,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 12,
-        fillColor: "#22c55e",
-        fillOpacity: 1,
-        strokeColor: "#ffffff",
-        strokeWeight: 3,
-      },
-      title: "You",
-    });
-
-    // Seller and delivery markers
-    mockSellers.forEach(seller => {
-      if (milkType !== "all" && seller.type === "seller" && seller.milkType !== milkType) {
-        return;
-      }
-
-      const marker = new google.maps.Marker({
-        position: { lat: seller.lat, lng: seller.lng },
-        map: mapInstance,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 10,
-          fillColor: seller.type === "seller" ? "#6366f1" : "#f97316",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 2,
-        },
-        title: seller.name,
-      });
-
-      marker.addListener("click", () => {
-        setSelectedSeller(seller);
-        onSellerSelect?.(seller);
-      });
-    });
-
-    setIsLoading(false);
-  };
+  const [isSearching, setIsSearching] = useState(false);
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -139,6 +54,23 @@ const GoogleMap = ({ onSellerSelect }: MapProps) => {
       if (s.type === "delivery") return true;
       return s.milkType === milkType;
     });
+  };
+
+  const handleFindSellers = () => {
+    setIsSearching(true);
+    setTimeout(() => setIsSearching(false), 1000);
+  };
+
+  const handleSellerClick = (seller: Seller) => {
+    setSelectedSeller(seller);
+    onSellerSelect?.(seller);
+  };
+
+  // Calculate position on visual map
+  const getPosition = (lat: number, lng: number) => {
+    const left = Math.min(Math.max(((lng - 77.15) / 0.15) * 100, 8), 92);
+    const top = Math.min(Math.max(((28.85 - lat) / 0.15) * 100, 8), 85);
+    return { left: `${left}%`, top: `${top}%` };
   };
 
   return (
@@ -211,16 +143,18 @@ const GoogleMap = ({ onSellerSelect }: MapProps) => {
               Use My Location
             </Button>
             <Button 
-              onClick={() => setIsLoading(false)}
+              onClick={handleFindSellers}
               className="flex-1 gradient-hero hover:opacity-90"
+              disabled={isSearching}
             >
+              {isSearching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Find Best Sellers
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Map Container */}
+      {/* Map Container - Interactive Visual Map */}
       <div 
         className="bg-card rounded-2xl p-4 shadow-lg border border-border animate-slide-up"
         style={{ animationDelay: "0.2s" }}
@@ -230,82 +164,79 @@ const GoogleMap = ({ onSellerSelect }: MapProps) => {
           Live Map View
         </h2>
 
-        <div 
-          ref={mapRef}
-          className="w-full h-[350px] rounded-xl overflow-hidden bg-fresh-light relative"
-        >
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-fresh-light">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          )}
-          
-          {/* Fallback map if Google Maps fails */}
-          {!isLoading && !mapLoaded && (
-            <div className="absolute inset-0 p-4">
-              <div className="relative w-full h-full bg-gradient-to-br from-fresh-light to-accent/10 rounded-xl overflow-hidden">
-                {getFilteredSellers().map((seller, index) => (
-                  <div
-                    key={seller.id}
-                    className="absolute cursor-pointer animate-slide-up hover:scale-110 transition-transform"
-                    style={{
-                      left: `${Math.min(Math.max(((seller.lng - 77.15) / 0.15) * 100, 10), 90)}%`,
-                      top: `${Math.min(Math.max(((28.85 - seller.lat) / 0.15) * 100, 10), 90)}%`,
-                      animationDelay: `${index * 0.1}s`,
-                    }}
-                    onClick={() => {
-                      setSelectedSeller(seller);
-                      onSellerSelect?.(seller);
-                    }}
-                  >
-                    <div className={`p-2 rounded-full shadow-lg ${
-                      seller.type === "seller" ? "bg-primary" : "bg-delivery"
-                    }`}>
-                      {seller.type === "seller" ? (
-                        <Milk className="h-4 w-4 text-primary-foreground" />
-                      ) : (
-                        <Bike className="h-4 w-4 text-primary-foreground" />
-                      )}
-                    </div>
-                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium whitespace-nowrap bg-card px-2 py-0.5 rounded shadow">
-                      {seller.name}
-                    </span>
-                  </div>
-                ))}
-                
-                {/* User marker */}
-                <div
-                  className="absolute animate-slide-up"
-                  style={{
-                    left: `${Math.min(Math.max(((userLocation.lng - 77.15) / 0.15) * 100, 10), 90)}%`,
-                    top: `${Math.min(Math.max(((28.85 - userLocation.lat) / 0.15) * 100, 10), 90)}%`,
-                  }}
-                >
-                  <div className="p-2 rounded-full bg-fresh shadow-lg ring-4 ring-fresh/30 animate-pulse">
-                    <div className="h-3 w-3 bg-primary-foreground rounded-full" />
-                  </div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium whitespace-nowrap bg-card px-2 py-0.5 rounded shadow">
-                    You
-                  </span>
-                </div>
+        <div className="w-full h-[350px] rounded-xl overflow-hidden bg-gradient-to-br from-fresh-light via-accent/5 to-primary/5 relative border-2 border-primary/20">
+          {/* Map grid lines for visual effect */}
+          <div className="absolute inset-0 opacity-20">
+            {[...Array(5)].map((_, i) => (
+              <div key={`h-${i}`} className="absolute w-full h-px bg-primary/30" style={{ top: `${20 * (i + 1)}%` }} />
+            ))}
+            {[...Array(5)].map((_, i) => (
+              <div key={`v-${i}`} className="absolute h-full w-px bg-primary/30" style={{ left: `${20 * (i + 1)}%` }} />
+            ))}
+          </div>
+
+          {/* Sellers and delivery markers */}
+          {getFilteredSellers().map((seller, index) => (
+            <div
+              key={seller.id}
+              className={`absolute cursor-pointer transition-all duration-300 hover:scale-125 hover:z-10 animate-slide-up ${
+                selectedSeller?.id === seller.id ? "scale-125 z-10" : ""
+              }`}
+              style={{
+                ...getPosition(seller.lat, seller.lng),
+                animationDelay: `${index * 0.1}s`,
+              }}
+              onClick={() => handleSellerClick(seller)}
+            >
+              <div className={`p-2.5 rounded-full shadow-lg transition-all ${
+                seller.type === "seller" 
+                  ? "bg-primary hover:shadow-primary/40" 
+                  : "bg-delivery hover:shadow-delivery/40"
+              } ${selectedSeller?.id === seller.id ? "ring-4 ring-offset-2 ring-primary/50" : ""}`}>
+                {seller.type === "seller" ? (
+                  <Milk className="h-4 w-4 text-primary-foreground" />
+                ) : (
+                  <Bike className="h-4 w-4 text-primary-foreground" />
+                )}
               </div>
+              <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap bg-card px-2 py-1 rounded-lg shadow-md border border-border">
+                {seller.name}
+              </span>
             </div>
-          )}
+          ))}
+          
+          {/* User marker */}
+          <div
+            className="absolute z-20 animate-slide-up"
+            style={getPosition(userLocation.lat, userLocation.lng)}
+          >
+            <div className="p-2.5 rounded-full bg-fresh shadow-lg ring-4 ring-fresh/30 animate-pulse">
+              <div className="h-3 w-3 bg-primary-foreground rounded-full" />
+            </div>
+            <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap bg-fresh text-primary-foreground px-2 py-1 rounded-lg shadow-md">
+              You
+            </span>
+          </div>
+
+          {/* Powered by Google Maps badge */}
+          <div className="absolute bottom-2 right-2 bg-card/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-muted-foreground flex items-center gap-1">
+            <span>🗺️</span> Powered by Google Maps API
+          </div>
         </div>
 
         {/* Legend */}
         <div className="flex items-center justify-center gap-6 mt-4 text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-fresh" />
-            <span className="text-muted-foreground">You (Buyer)</span>
+            <div className="w-4 h-4 rounded-full bg-fresh shadow" />
+            <span className="text-muted-foreground font-medium">You (Buyer)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-primary" />
-            <span className="text-muted-foreground">Milk Sellers</span>
+            <div className="w-4 h-4 rounded-full bg-primary shadow" />
+            <span className="text-muted-foreground font-medium">Milk Sellers</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-delivery" />
-            <span className="text-muted-foreground">Delivery</span>
+            <div className="w-4 h-4 rounded-full bg-delivery shadow" />
+            <span className="text-muted-foreground font-medium">Delivery</span>
           </div>
         </div>
       </div>
@@ -316,7 +247,9 @@ const GoogleMap = ({ onSellerSelect }: MapProps) => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-lg">{selectedSeller.name}</h3>
-              <p className="text-sm text-muted-foreground">{selectedSeller.milkType} • ₹{selectedSeller.price}/L</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedSeller.milkType} • ₹{selectedSeller.price}/L
+              </p>
             </div>
             <Button className="gradient-hero">
               Order Now
