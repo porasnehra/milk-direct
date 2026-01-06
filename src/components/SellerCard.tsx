@@ -1,6 +1,7 @@
-import { MapPin, ThermometerSun, Shield, Star } from "lucide-react";
+import { MapPin, ThermometerSun, Shield, Star, ShoppingCart } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { useCart } from "@/contexts/CartContext";
 
 interface Seller {
   id: number;
@@ -64,6 +65,17 @@ interface SellerCardProps {
 }
 
 const SellerCard = ({ seller, index }: SellerCardProps) => {
+  const { addToCart, isLoading } = useCart();
+
+  const handleOrder = () => {
+    addToCart({
+      seller_id: seller.id,
+      seller_name: seller.name,
+      milk_type: seller.milkType,
+      price: seller.price,
+    });
+  };
+
   return (
     <div
       className="bg-card rounded-2xl p-4 shadow-lg border border-border hover:shadow-xl transition-shadow animate-slide-up"
@@ -132,8 +144,13 @@ const SellerCard = ({ seller, index }: SellerCardProps) => {
         </div>
       </div>
 
-      <Button className="w-full mt-4 gradient-hero hover:opacity-90">
-        Order from {seller.name.split(" ")[0]}
+      <Button 
+        className="w-full mt-4 gradient-hero hover:opacity-90"
+        onClick={handleOrder}
+        disabled={isLoading}
+      >
+        <ShoppingCart className="h-4 w-4 mr-2" />
+        {isLoading ? "Adding..." : `Add to Cart`}
       </Button>
     </div>
   );
